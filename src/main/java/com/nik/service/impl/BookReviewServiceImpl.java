@@ -1,5 +1,6 @@
 package com.nik.service.impl;
 
+import org.springframework.cache.CacheManager;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,18 +57,21 @@ public class BookReviewServiceImpl implements BookReviewService {
     private final UserRepository userRepository;
     private final BookLoanRepository bookLoanRepository;
     private final BookReviewMapper bookReviewMapper;
+    private final CacheManager cacheManager;
 
     public BookReviewServiceImpl(
             BookReviewRepository bookReviewRepository,
             BookRepository bookRepository,
             UserRepository userRepository,
             BookLoanRepository bookLoanRepository,
-            BookReviewMapper bookReviewMapper) {
+            BookReviewMapper bookReviewMapper,
+            CacheManager cacheManager) {
         this.bookReviewRepository = bookReviewRepository;
         this.bookRepository = bookRepository;
         this.userRepository = userRepository;
         this.bookLoanRepository = bookLoanRepository;
         this.bookReviewMapper = bookReviewMapper;
+        this.cacheManager = cacheManager;
     }
 
     @Override
@@ -101,6 +105,7 @@ public class BookReviewServiceImpl implements BookReviewService {
         bookReview.setHelpfulCount(0);
 
         BookReview savedReview = bookReviewRepository.save(bookReview);
+        evictAiSummaryCache(request.getBookId());
 
         return bookReviewMapper.toDTO(savedReview);
     }
@@ -122,6 +127,7 @@ public class BookReviewServiceImpl implements BookReviewService {
         bookReview.setTitle(request.getTitle());
 
         BookReview updatedReview = bookReviewRepository.save(bookReview);
+        evictAiSummaryCache(bookReview.getBook().getId());
 
         return bookReviewMapper.toDTO(updatedReview);
     }
@@ -140,6 +146,19 @@ public class BookReviewServiceImpl implements BookReviewService {
 
         bookReview.setIsActive(false);
         bookReviewRepository.save(bookReview);
+
+        evictAiSummaryCache(bookReview.getBook().getId());
+    }
+
+    private void evictAiSummaryCache(Long bookId) {
+        try {
+            org.springframework.cache.Cache cache = cacheManager.getCache("aiReviewSummaries");
+            if (cache != null) {
+                cache.evict(bookId);
+            }
+        } catch (Exception e) {
+            // Ignore exception to prevent breaking core transaction flow
+        }
     }
 
     @Override

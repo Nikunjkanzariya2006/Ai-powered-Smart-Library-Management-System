@@ -8,6 +8,7 @@ import java.util.Map;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -47,6 +48,7 @@ public class AiBookReviewSummaryServiceImpl implements AiBookReviewSummaryServic
     }
 
     @Override
+    @Cacheable(value = "aiReviewSummaries", key = "#bookId", unless = "#result == null")
     public BookReviewAiSummaryResponse generateSummary(Long bookId) throws BookException {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new BookException("Book not found with id: " + bookId));

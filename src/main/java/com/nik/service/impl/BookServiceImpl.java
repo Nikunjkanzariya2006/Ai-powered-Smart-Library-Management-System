@@ -12,6 +12,7 @@ import com.nik.payload.response.PageResponse;
 import com.nik.repository.BookLoanRepository;
 import com.nik.repository.BookRepository;
 import com.nik.repository.ReservationRepository;
+import com.nik.service.BookCacheService;
 import com.nik.service.BookService;
 import com.nik.service.UserService;
 import jakarta.transaction.Transactional;
@@ -49,6 +50,7 @@ public class BookServiceImpl implements BookService {
     private final BookLoanRepository bookLoanRepository;
     private final UserService userService;
     private final ReservationRepository reservationRepository;
+    private final BookCacheService bookCacheService;
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
             "createdAt", "updatedAt", "title", "author", "isbn", "availableCopies", "totalCopies", "price"
     );
@@ -83,6 +85,7 @@ public class BookServiceImpl implements BookService {
         }
 
         Book savedBook = bookRepository.save(book);
+        bookCacheService.evictAllBookIsbnCache();
 
         return bookMapper.toDTO(savedBook);
     }
@@ -131,6 +134,7 @@ public class BookServiceImpl implements BookService {
 
         // Save all books in a single batch
         List<Book> savedBooks = bookRepository.saveAll(booksToSave);
+        bookCacheService.evictAllBookIsbnCache();
 
         // Convert to DTOs and return
         return savedBooks.stream()
@@ -138,11 +142,45 @@ public class BookServiceImpl implements BookService {
             .collect(Collectors.toList());
     }
 
+    private BookDTO cloneBookDTO(BookDTO source) {
+        if (source == null) return null;
+        BookDTO target = new BookDTO();
+        target.setId(source.getId());
+        target.setIsbn(source.getIsbn());
+        target.setTitle(source.getTitle());
+        target.setAuthor(source.getAuthor());
+        target.setGenreId(source.getGenreId());
+        target.setGenreName(source.getGenreName());
+        target.setGenreCode(source.getGenreCode());
+        target.setPublisher(source.getPublisher());
+        target.setPublicationDate(source.getPublicationDate());
+        target.setLanguage(source.getLanguage());
+        target.setPages(source.getPages());
+        target.setDescription(source.getDescription());
+        target.setTotalCopies(source.getTotalCopies());
+        target.setAvailableCopies(source.getAvailableCopies());
+        target.setPrice(source.getPrice());
+        target.setCoverImageUrl(source.getCoverImageUrl());
+        target.setDeweyDecimal(source.getDeweyDecimal());
+        target.setLibraryOfCongressCode(source.getLibraryOfCongressCode());
+        target.setCallNumber(source.getCallNumber());
+        target.setAudienceLevel(source.getAudienceLevel());
+        target.setSubjectHeadings(source.getSubjectHeadings());
+        target.setGenreClassificationSystem(source.getGenreClassificationSystem());
+        target.setGenreClassificationCode(source.getGenreClassificationCode());
+        target.setGenreHierarchyPath(source.getGenreHierarchyPath());
+        target.setAlreadyHaveLoan(source.getAlreadyHaveLoan());
+        target.setAlreadyHaveReservation(source.getAlreadyHaveReservation());
+        target.setActive(source.getActive());
+        target.setCreatedAt(source.getCreatedAt());
+        target.setUpdatedAt(source.getUpdatedAt());
+        return target;
+    }
+
     @Override
     public BookDTO getBookById(Long bookId) throws BookException, UserException {
-        Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new BookException("Book not found with id: " + bookId));
-        BookDTO bookDTO = bookMapper.toDTO(book);
+        BookDTO cachedDTO = bookCacheService.getBookDetailsOnly(bookId);
+        BookDTO bookDTO = cloneBookDTO(cachedDTO);
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         boolean isAuthenticated = authentication != null
@@ -170,9 +208,7 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public BookDTO getBookByIsbn(String isbn) throws BookException {
-        Book book = bookRepository.findByIsbn(isbn)
-                .orElseThrow(() -> new BookException("Book not found with ISBN: " + isbn));
-        return bookMapper.toDTO(book);
+        return bookCacheService.getBookByIsbn(isbn);
     }
 
     @Override
@@ -194,6 +230,8 @@ public class BookServiceImpl implements BookService {
         bookMapper.updateEntityFromDTO(bookDTO, existingBook);
 
         Book updatedBook = bookRepository.save(existingBook);
+        bookCacheService.evictBookCache(bookId);
+        bookCacheService.evictAllBookIsbnCache();
         return bookMapper.toDTO(updatedBook);
     }
 
@@ -205,6 +243,8 @@ public class BookServiceImpl implements BookService {
         // Soft delete - mark as inactive
         book.setActive(false);
         bookRepository.save(book);
+        bookCacheService.evictBookCache(bookId);
+        bookCacheService.evictAllBookIsbnCache();
     }
 
     @Override
@@ -214,6 +254,8 @@ public class BookServiceImpl implements BookService {
 
         // Hard delete - permanently remove from database
         bookRepository.delete(book);
+        bookCacheService.evictBookCache(bookId);
+        bookCacheService.evictAllBookIsbnCache();
     }
 
     @Override

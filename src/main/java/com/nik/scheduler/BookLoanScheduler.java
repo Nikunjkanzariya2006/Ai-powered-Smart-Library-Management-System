@@ -5,6 +5,7 @@ import com.nik.service.NotificationService;
 import com.nik.service.ReservationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -35,6 +36,7 @@ public class BookLoanScheduler {
      * Runs every midnight (00:00:00).
      */
     @Scheduled(cron = "0 0 0 * * ?")
+    @SchedulerLock(name = "BookLoanScheduler_markOverdueLoans", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void markOverdueLoans() {
         logger.info("Starting scheduled task: marking overdue book loans");
 
@@ -51,6 +53,7 @@ public class BookLoanScheduler {
      * Runs every day at 9:00 AM.
      */
     @Scheduled(cron = "0 0 9 * * ?")
+    @SchedulerLock(name = "BookLoanScheduler_sendOverdueNotifications", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void sendOverdueNotifications() {
         logger.info("Starting scheduled task: sending overdue notifications");
 
@@ -68,6 +71,7 @@ public class BookLoanScheduler {
      * Sends reminders for books due in 3 days.
      */
     @Scheduled(cron = "0 0 10 * * ?")
+    @SchedulerLock(name = "BookLoanScheduler_sendDueDateReminders", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void sendDueDateReminders() {
         logger.info("Starting scheduled task: sending due date reminders");
 
@@ -84,6 +88,7 @@ public class BookLoanScheduler {
      * Runs every hour so reservation expiry is enforced close to the 24-hour hold window.
      */
     @Scheduled(cron = "0 0 * * * ?")
+    @SchedulerLock(name = "BookLoanScheduler_expireOldReservations", lockAtMostFor = "5m", lockAtLeastFor = "1m")
     public void expireOldReservations() {
         logger.info("Starting scheduled task: expiring old reservations");
 
@@ -102,6 +107,7 @@ public class BookLoanScheduler {
      * Runs every 5 minutes.
      */
     @Scheduled(cron = "0 */5 * * * ?")
+    @SchedulerLock(name = "BookLoanScheduler_promotePendingReservationsWhenBookIsAvailable", lockAtMostFor = "4m", lockAtLeastFor = "1m")
     public void promotePendingReservationsWhenBookIsAvailable() {
         try {
             int promoted = reservationService.processPendingReservationsForAvailableBooks();

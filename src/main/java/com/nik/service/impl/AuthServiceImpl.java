@@ -291,7 +291,7 @@ public class AuthServiceImpl implements AuthService {
                 + "&email="
                 + URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8);
         String subject = "Verify your email address";
-        String body = "Welcome to Mayur Library. Please verify your email by clicking this link within 24 hours: "
+        String body = "Welcome to Nik's Library. Please verify your email by clicking this link within 24 hours: "
                 + verificationLink;
 
         emailService.sendEmail(user.getEmail(), subject, body);

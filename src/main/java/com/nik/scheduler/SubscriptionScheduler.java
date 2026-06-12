@@ -3,6 +3,7 @@ package com.nik.scheduler;
 import com.nik.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +23,7 @@ public class SubscriptionScheduler {
      * Cron expression: "0 0 2 * * ?" = Every day at 2:00 AM
      */
     @Scheduled(cron = "0 0 2 * * ?")
+    @SchedulerLock(name = "SubscriptionScheduler_deactivateExpiredSubscriptions", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     public void deactivateExpiredSubscriptions() {
         log.info("Starting scheduled subscription expiry check...");
 

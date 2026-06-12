@@ -3,6 +3,7 @@ package com.nik.scheduler;
 import com.nik.service.impl.PaymentServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,7 @@ public class PaymentScheduler {
     private final PaymentServiceImpl paymentService;
 
     @Scheduled(fixedDelay = 30000)
+    @SchedulerLock(name = "PaymentScheduler_reconcileProcessingPayments", lockAtMostFor = "25s", lockAtLeastFor = "5s")
     public void reconcileProcessingPayments() {
         log.debug("Reconciling stale processing payments");
         paymentService.reconcileStaleProcessingPayments();

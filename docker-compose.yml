@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+    container_name: library-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+  redis-ui:
+    image: redislabs/redisinsight:latest@sha256:85562d67a9128ac7f764bb3d1ac909fcf77708c7c8f55bd1605a85b3c4becc83
+    container_name: library-redis-ui
+    ports:
+      - "8001:5540"
+    environment:
+      RI_REDIS_HOST: redis
+      RI_REDIS_PORT: 6379
+      RI_REDIS_ALIAS: "Library Redis"
+      RI_ACCEPT_TERMS_AND_CONDITIONS: "true"
+    depends_on:
+      - redis
+    restart: always
+
+volumes:
+  redis_data:
